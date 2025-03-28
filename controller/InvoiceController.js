@@ -15,7 +15,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export const pickAndDropInvoice = asyncHandler(async (req, resp) => {
-    const {rider_id, request_id, payment_intent_id ='', coupon_code ='' } = mergeParam(req);
+    const {rider_id, request_id, payment_intent_id ='', coupon_code ='', session_id='' } = mergeParam(req);
 
     const { isValid, errors } = validateFields(mergeParam(req), {
         rider_id   : ["required"], 
@@ -59,7 +59,12 @@ export const pickAndDropInvoice = asyncHandler(async (req, resp) => {
                 let coupan_percentage = coupon.coupan_percentage ;
                 await insertRecord('coupon_usage', ['coupan_code', 'user_id', 'booking_id', 'coupan_percentage'], [coupon_code, rider_id, request_id, coupan_percentage], conn);
             }
-            const updt = await updateRecord('charging_service', { order_status : 'CNF', payment_intent_id}, ['request_id', 'rider_id'], [request_id, rider_id], conn );
+            let paymentIntentId = payment_intent_id;
+            if(session_id){
+                const session = await stripe.checkout.sessions.retrieve(session_id);
+                paymentIntentId = session.payment_intent ;
+            }
+            const updt = await updateRecord('charging_service', { order_status : 'CNF', payment_intent_id : paymentIntentId }, ['request_id', 'rider_id'], [request_id, rider_id], conn );
 
             const href    = 'charging_service/' + request_id;
             const heading = 'EV Valet Charging Service Booking!';
@@ -115,7 +120,7 @@ export const pickAndDropInvoice = asyncHandler(async (req, resp) => {
 });
 
 export const portableChargerInvoice = asyncHandler(async (req, resp) => {
-    const {rider_id, request_id, payment_intent_id ='', coupon_code ='' } = mergeParam(req);
+    const {rider_id, request_id, payment_intent_id='', coupon_code='', session_id='' } = mergeParam(req);
     const { isValid, errors } = validateFields(mergeParam(req), {
         rider_id   : ["required"], 
         request_id : ["required"]
@@ -123,7 +128,7 @@ export const portableChargerInvoice = asyncHandler(async (req, resp) => {
     if (!isValid) return resp.json({ status: 0, code: 422, message: errors });
 
     const conn = await startTransaction();
-    try{
+    try { 
         const checkOrder = await queryDB(`
             SELECT pcb.user_name, pcb.country_code, pcb.contact_no, pcb.slot_date, pcb.slot_time, pcb.address, pcb.latitude, pcb.longitude,
             pcb.service_type, pcb.created_at, rd.fcm_token, rd.rider_email, 
@@ -162,7 +167,12 @@ export const portableChargerInvoice = asyncHandler(async (req, resp) => {
             if (checkOrder.service_type.toLowerCase() === "get monthly subscription") {
                 await conn.execute('UPDATE portable_charger_subscriptions SET total_booking = total_booking + 1 WHERE rider_id = ?', [rider_id]);
             }
-            await updateRecord('portable_charger_booking', { status : 'CNF', payment_intent_id}, ['booking_id', 'rider_id'], [request_id, rider_id], conn );
+            let paymentIntentId = payment_intent_id;
+            if(session_id){
+                const session = await stripe.checkout.sessions.retrieve(session_id);
+                paymentIntentId = session.payment_intent ;
+            }
+            await updateRecord('portable_charger_booking', { status : 'CNF', payment_intent_id: paymentIntentId}, ['booking_id', 'rider_id'], [request_id, rider_id], conn );
 
             const href    = 'portable_charger_booking/' + request_id;
             const heading = 'Portable Charging Booking!';

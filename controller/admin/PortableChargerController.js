@@ -201,16 +201,15 @@ export const chargerBookingList = async (req, resp) => {
             limit            : 10,
             liveSearchFields : ['booking_id', 'user_name', 'service_name'],
             liveSearchTexts  : [search_text, search_text, search_text],
-            whereField       : [],
-            whereValue       : [],
-            whereOperator    : []
+            whereField       : ['status'],
+            whereValue       : ['PNR'],
+            whereOperator    : ["!="]
             // searchFields: ['booking_id', 'user_name', 'contact_no', 'status'],
             // searchTexts: [booking_id, name, contact, status]
             // whereField: ['status'],
             // whereValue: [status],
             // whereOperator: ['==']
         };
-
         if (start_date && end_date) {
             
             // const start = moment(start_date, "YYYY-MM-DD").startOf('day').format("YYYY-MM-DD HH:mm:ss");
@@ -221,7 +220,7 @@ export const chargerBookingList = async (req, resp) => {
                         
             const givenStartDateTime    = startFormattedDate+' 00:00:01'; // Replace with your datetime string
             const modifiedStartDateTime = moment(givenStartDateTime).subtract(4, 'hours'); // Subtract 4 hours
-            const start        = modifiedStartDateTime.format('YYYY-MM-DD HH:mm:ss')
+            const start                 = modifiedStartDateTime.format('YYYY-MM-DD HH:mm:ss')
             
             const endToday = new Date(end_date);
             const formattedEndDate = `${endToday.getFullYear()}-${(endToday.getMonth() + 1).toString()
@@ -456,9 +455,9 @@ export const invoiceList = async (req, resp) => {
 
         if (!isValid) return resp.json({ status: 0, code: 422, message: errors });
 
-        const whereFields = ['invoice_status'];
-        const whereValues = ['S'];
-        const whereOperators = ['='];
+        const whereFields = [];
+        const whereValues = [];
+        const whereOperators = [];
 
         if (start_date && end_date) {
             const startToday = new Date(start_date);
@@ -1110,6 +1109,76 @@ export const customerChargerBookingList = async (req, resp) => {
             status     : 1,
             code       : 200,
             message    : ["Customer POD Booking List fetched successfully!"],
+            data       : result.data,
+            total_page : result.totalPage,
+            total      : result.total,
+        });
+    } catch (error) {
+        console.error('Error fetching charger booking list:', error);
+        return resp.status(500).json({ status: 0, message: 'Error fetching charger booking lists' });
+    }
+};
+export const failedChargerBookingList = async (req, resp) => {
+    try {
+        const { page_no, start_date, end_date, search_text = '', scheduleFilters } = req.body;
+
+        const { isValid, errors } = validateFields(req.body, {
+            page_no : ["required"]
+        });
+        if (!isValid) return resp.json({ status: 0, code: 422, message: errors });
+
+        const params = {
+            tableName : 'portable_charger_booking',
+            columns   : `booking_id, rider_id, rsa_id, charger_id, vehicle_id, service_name, service_price, service_type, user_name, country_code, contact_no, status, 
+            (select rsa_name from rsa where rsa.rsa_id = portable_charger_booking.rsa_id) as rsa_name, 
+                ${formatDateInQuery(['slot_date'])}, concat(slot_date, " ", slot_time) as slot_time, ${formatDateTimeInQuery(['created_at'])}`,
+            sortColumn : 'slot_date',
+            sortOrder  : 'DESC',
+            page_no,
+            limit: 10,
+            liveSearchFields : ['booking_id', 'user_name', 'service_name'],
+            liveSearchTexts  : [search_text, search_text, search_text],
+            whereField       : [],
+            whereValue       : [],
+            whereOperator    : [],          
+            whereField       : ['status'],
+            whereValue       : ['PNR'],
+            whereOperator    : ['=']
+        };
+        if (start_date && end_date) {
+            
+            const startToday = new Date(start_date);
+            const startFormattedDate = `${startToday.getFullYear()}-${(startToday.getMonth() + 1).toString()
+                .padStart(2, '0')}-${startToday.getDate().toString().padStart(2, '0')}`;
+                       
+            const givenStartDateTime    = startFormattedDate+' 00:00:01'; // Replace with your datetime string
+            const modifiedStartDateTime = moment(givenStartDateTime).subtract(4, 'hours'); // Subtract 4 hours
+            const start        = modifiedStartDateTime.format('YYYY-MM-DD HH:mm:ss')
+            
+            const endToday = new Date(end_date);
+            const formattedEndDate = `${endToday.getFullYear()}-${(endToday.getMonth() + 1).toString()
+                .padStart(2, '0')}-${endToday.getDate().toString().padStart(2, '0')}`;
+            const end = formattedEndDate+' 19:59:59';
+
+            params.whereField.push('created_at', 'created_at');
+            params.whereValue.push(start, end);
+            params.whereOperator.push('>=', '<=');
+        }
+        if (scheduleFilters.start_date && scheduleFilters.end_date) {
+          
+            const schStart = moment(scheduleFilters.start_date).format("YYYY-MM-DD");
+            const schEnd   = moment(scheduleFilters.end_date, "YYYY-MM-DD").format("YYYY-MM-DD");
+            
+            params.whereField.push('slot_date', 'slot_date');
+            params.whereValue.push(schStart, schEnd);
+            params.whereOperator.push('>=', '<=');
+        }
+        const result = await getPaginatedData(params);
+
+        return resp.json({
+            status     : 1,
+            code       : 200,
+            message    : ["Failed POD Booking List fetched successfully!"],
             data       : result.data,
             total_page : result.totalPage,
             total      : result.total,

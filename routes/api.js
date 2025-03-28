@@ -39,7 +39,7 @@ import {
     getChargingServiceSlotList, requestService, listServices, getServiceOrderDetail, getInvoiceList, getInvoiceDetail, handleBookingAction, getRsaBookingStage, handleRejectBooking, cancelValetBooking
 } from '../controller/api/ChargingServiceController.js';
 
-import { bulkEmailSend, GetInvoiceByHRS } from '../controller/TestController.js';
+import { bulkEmailSend, getPaymentSession, getPaymentSessionData } from '../controller/TestController.js';
 
 import rateLimit from 'express-rate-limit';
 const router = Router();
@@ -291,13 +291,10 @@ authzRsaAndAuthRoutes.forEach(({ method, path, handler }) => {
     router[method](path, ...middlewares, handler);
 });
 
-
 router.post('/validate-coupon', redeemCoupon);
 router.post('/auto-pay', autoPay);
 router.get('/test-mail', bulkEmailSend);
-router.get('/get-invoice', GetInvoiceByHRS);
-
-
-
+router.get('/create-payment-session', getPaymentSession);
+router.get('/get-payment-session', getPaymentSessionData); 
 
 export default router;

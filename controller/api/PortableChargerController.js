@@ -99,7 +99,7 @@ export const getPcSlotList = asyncHandler(async (req, resp) => {
     const [[lastBookingData]] = await db.execute(`SELECT status, ${formatDateTimeInQuery(['created_at'])} FROM portable_charger_booking WHERE rider_id = ? order by id desc limit 1 `, [rider_id]);
 
     let bookingPrice = 1;
-    if(lastBookingData.status == 'C' ) {
+    if(lastBookingData && lastBookingData.status == 'C' ) {
         let timeZone = moment().tz("Asia/Dubai");
         let prevDay  = timeZone.subtract(24, 'hours').format('YYYY-MM-DD HH:mm:ss');
         bookingPrice = ( lastBookingData.created_at > prevDay ) ? 0 : bookingPrice;
@@ -880,11 +880,11 @@ const chargerPickedUp = async (req, resp) => {
                     </body>
                 </html>`;
                 const attachment = {
-                    filename: `${invoiceId}-invoice.pdf`, path: pdf.pdfPath, contentType: 'application/pdf'
+                    filename : `${invoiceId}-invoice.pdf`, path: pdf.pdfPath, contentType: 'application/pdf'
                 };
-            
                 emailQueue.addEmail(bookingData.data.rider_email, 'PlusX Electric: Invoice for Your Portable EV Charger Service', html, attachment);
             }
+            await portableChargerInvoice(checkOrder.rider_id, booking_id); 
         // }
         return resp.json({ message: ['Portable Charger picked-up successfully!'], status: 1, code: 200 });
     } else {
@@ -921,7 +921,7 @@ const reachedOffice = async (req, resp) => {
         await updateRecord('portable_charger_booking', {status: 'RO', rsa_id}, ['booking_id'], [booking_id] );
         await db.execute(`DELETE FROM portable_charger_booking_assign WHERE rsa_id = ? and order_id = ?`, [rsa_id, booking_id]);
 
-        await portableChargerInvoice(checkOrder.rider_id, booking_id); 
+        
         if(checkOrder.pod_id) {
             await updateRecord('pod_devices', { latitude, longitude}, ['pod_id'], [checkOrder.pod_id] );
         }
@@ -1084,6 +1084,7 @@ const getPodBatteryData = async (pod_id) => {
 }
 // ye new bana hai 
 const portableChargerInvoice = async (rider_id, request_id ) => {
+    console.log('asdas');
     try {
         const checkOrder = await queryDB(` SELECT payment_intent_id
             FROM 
@@ -1091,7 +1092,7 @@ const portableChargerInvoice = async (rider_id, request_id ) => {
             WHERE 
                 booking_id = ? AND rider_id = ?
             LIMIT 1
-        `,[request_id, rsa_id]);
+        `,[request_id, rider_id]);
 
         if (!checkOrder) {
             return { status : 0  };
@@ -1128,7 +1129,7 @@ const portableChargerInvoice = async (rider_id, request_id ) => {
             createObj.receipt_url       = charge.receipt_url;
             createObj.card_data         = cardData;
         }
-        // return resp.json(createObj);
+        console.log(createObj);
         const columns = Object.keys(createObj);
         const values  = Object.values(createObj);
         const insert  = await insertRecord('portable_charger_invoice', columns, values);
@@ -1136,7 +1137,7 @@ const portableChargerInvoice = async (rider_id, request_id ) => {
         return { status: (insert.affectedRows > 0) ? 1 : 0 };
         
     } catch (error) {
-
+        console.log(error);
         return { status:0  };
     }
 };

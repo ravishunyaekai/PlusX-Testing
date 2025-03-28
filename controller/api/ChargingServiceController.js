@@ -159,8 +159,8 @@ export const listServices = asyncHandler(async (req, resp) => {
 
     const limit = 10;
     const start = (page_no[0] * limit) - limit;
-    const statusCondition = (history && history == 1) ? `order_status IN (?, ?)` : `order_status NOT IN (?, ?)`;
-    const statusParams = ['WC', 'C'];
+    const statusCondition = (history && history == 1) ? `order_status IN (?, ?)` : `order_status NOT IN (?, ?, ?)`;
+    const statusParams    = (history && history == 1) ? ['WC', 'C'] : ['PNR', 'WC', 'C'];
 
     const totalQuery = `SELECT COUNT(*) AS total FROM charging_service WHERE rider_id = ? AND ${statusCondition}`;
     const [totalRows] = await db.execute(totalQuery, [rider_id, ...statusParams]);

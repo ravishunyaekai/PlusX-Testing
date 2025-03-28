@@ -341,7 +341,7 @@ export const home = asyncHandler(async (req, resp) => {
     
     const pickDropData = await queryDB(
         `SELECT request_id, (SELECT CONCAT(rsa_name, ',', country_code, ' ', mobile) FROM rsa WHERE rsa_id = charging_service.rsa_id) AS rsaDetails, created_at 
-        FROM charging_service WHERE rider_id = ? AND created_at >= NOW() - INTERVAL 30 MINUTE AND order_status NOT IN ('CNF', 'A', 'WC', 'C') ORDER BY id DESC LIMIT 1
+        FROM charging_service WHERE rider_id = ? AND created_at >= NOW() - INTERVAL 30 MINUTE AND order_status NOT IN ('PNR', 'CNF', 'A', 'WC', 'C') ORDER BY id DESC LIMIT 1
     `, [rider_id]);
     
     if (pickDropData) pickDropData.eta_time = '11 Min.';
@@ -572,8 +572,8 @@ export const riderAddressList = asyncHandler(async (req, resp) => {
 
         query += ` ORDER BY id DESC`;
         const [result] = await db.execute(query, queryParams);
-        return resp.json({message: [], status: 1, code: 200, data: result});
-    }catch(err){
+        return resp.json({message: ['We apologize! Our services are currently unavailable in JLT'], status: 1, code: 200, data: result});
+    } catch(err) {
         console.error('Error fetching rider addresses:', err);
         return resp.json({message: 'Error occurred while fetching rider addresses', status: 0, code: 500});
     }
